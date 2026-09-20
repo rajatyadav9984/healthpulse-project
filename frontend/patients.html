@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients Directory — HealthPulse</title>
+    <meta name="description" content="Manage and view all registered health center patient records.">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="patients">
+
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <a href="index.html" class="brand">
+            <div class="brand-icon">❤️‍🔥</div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="brand-title">HealthPulse</span>
+                    <span class="brand-tag">v1.0</span>
+                </div>
+            </div>
+        </a>
+
+        <ul class="nav-links">
+            <li><a href="index.html" class="nav-link">📊 Dashboard</a></li>
+            <li><a href="patients.html" class="nav-link active">🩺 Patients</a></li>
+            <li><a href="doctors.html" class="nav-link">👨‍⚕️ Doctors</a></li>
+            <li><a href="appointments.html" class="nav-link">📅 Appointments</a></li>
+        </ul>
+
+        <div id="healthStatusPill" class="status-pill">
+            <span class="status-dot"></span> Checking API...
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="container">
+        
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Patient Records Directory</h1>
+                <p class="page-subtitle">Search, filter, and register admitted and out-patient records.</p>
+            </div>
+            <button class="btn btn-primary" onclick="openModal('addPatientModal')">+ Register Patient</button>
+        </div>
+
+        <div class="glass-panel">
+            <div class="toolbar">
+                <div class="search-box">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="patientSearchInput" class="search-input" placeholder="Search patient by name or diagnosis..." onkeyup="filterPatients()">
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Patient Name</th>
+                            <th>Age / Gender</th>
+                            <th>Blood Group</th>
+                            <th>Contact</th>
+                            <th>Diagnosis / Condition</th>
+                            <th>Health Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patientsTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">Fetching patient records...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal: Add New Patient -->
+    <div id="addPatientModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Register New Patient</h3>
+                <button class="close-btn" onclick="closeModal('addPatientModal')">&times;</button>
+            </div>
+            <form onsubmit="submitAddPatient(event)">
+                <div class="form-group">
+                    <label class="form-label">Full Name</label>
+                    <input type="text" id="pName" class="form-control" required placeholder="e.g. Rahul Sharma">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Age</label>
+                        <input type="number" id="pAge" class="form-control" required placeholder="32">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Gender</label>
+                        <select id="pGender" class="form-control" required>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label class="form-label">Blood Group</label>
+                        <select id="pBlood" class="form-control" required>
+                            <option value="A+">A+</option>
+                            <option value="B+">B+</option>
+                            <option value="O+">O+</option>
+                            <option value="AB+">AB+</option>
+                            <option value="O-">O-</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Number</label>
+                        <input type="text" id="pContact" class="form-control" required placeholder="+91 9876543210">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Primary Diagnosis / Condition</label>
+                    <input type="text" id="pCondition" class="form-control" required placeholder="e.g. Routine Examination">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addPatientModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Patient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Schedule Appointment -->
+    <div id="appointmentModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Schedule Doctor Consultation</h3>
+                <button class="close-btn" onclick="closeModal('appointmentModal')">&times;</button>
+            </div>
+            <form onsubmit="submitAddAppointment(event)">
+                <div class="form-group">
+                    <label class="form-label">1. Clinical Department</label>
+                    <select id="aptDeptSelect" class="form-control" required onchange="onDepartmentChange()">
+                        <option value="">-- Select Department --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">2. Attending Specialist / Doctor</label>
+                    <select id="aptDoctorSelect" class="form-control" required disabled onchange="onDoctorOrDateChange()">
+                        <option value="">-- Select Department First --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">3. Patient Name</label>
+                    <input type="text" id="aptPatientName" class="form-control" required placeholder="Enter patient full name" list="patientsDatalist">
+                    <datalist id="patientsDatalist"></datalist>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">4. Appointment Date</label>
+                    <input type="date" id="aptDate" class="form-control" required onchange="onDoctorOrDateChange()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">5. Available Time Slot</label>
+                    <div id="aptSlotsContainer" style="font-size: 0.85rem; color: var(--text-muted); padding: 0.5rem 0;">
+                        Please select a Doctor and Date first to view available time slots.
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('appointmentModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        HealthPulse Operations Suite &copy; 2026. Built with Python Flask, MongoDB & Modern Web Standards.
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
