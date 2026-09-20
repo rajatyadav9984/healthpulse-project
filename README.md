@@ -49,14 +49,16 @@ HealthPulse-project/
 │   └── tests/
 │       └── test_app.py        # Pytest Test Cases
 ├── frontend/
-│   ├── index.html             # Operations Dashboard Page
-│   ├── patients.html          # Patient Directory Page
-│   ├── doctors.html           # Doctor Roster & Shift Schedules Page
-│   ├── appointments.html     # Appointment Booking & Consultations Page
+│   ├── html/
+│   │   ├── index.html         # Operations Dashboard Page
+│   │   ├── patients.html      # Patient Directory Page
+│   │   ├── doctors.html       # Doctor Roster & Shift Schedules Page
+│   │   └── appointments.html # Appointment Booking & Consultations Page
 │   ├── css/
 │   │   └── style.css          # Design Tokens & UI Stylesheet
 │   └── js/
 │       └── app.js             # Client API Gateway & Dynamic DOM Controllers
+
 ├── start_healthpulse.bat      # 🚀 1-Click App Launcher Script
 ├── stop_healthpulse.bat       # 🛑 1-Click Server Termination Script
 ├── create_desktop_shortcut.bat# 🖥️ Desktop Icon Generator

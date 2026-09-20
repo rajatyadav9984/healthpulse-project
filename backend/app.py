@@ -12,7 +12,8 @@ from routes.appointments import appointments_bp
 
 def create_app():
     frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
-    app = Flask(__name__, static_folder=frontend_dir, static_url_path='')
+    html_dir = os.path.join(frontend_dir, 'html')
+    app = Flask(__name__, static_folder=html_dir, static_url_path='')
     CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)  # Enable CORS for all origins
 
     # Register Blueprints
@@ -22,7 +23,23 @@ def create_app():
 
     @app.route('/')
     def index():
-        return send_from_directory(frontend_dir, 'index.html')
+        return send_from_directory(html_dir, 'index.html')
+
+    @app.route('/<page>.html')
+    def render_html_page(page):
+        return send_from_directory(html_dir, f"{page}.html")
+
+    @app.route('/css/<path:filename>')
+    def serve_css(filename):
+        return send_from_directory(os.path.join(frontend_dir, 'css'), filename)
+
+    @app.route('/js/<path:filename>')
+    def serve_js(filename):
+        return send_from_directory(os.path.join(frontend_dir, 'js'), filename)
+
+
+
+
 
     @app.route('/health', methods=['GET'])
     def health_check():
