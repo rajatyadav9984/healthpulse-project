@@ -70,5 +70,23 @@
     "department": "Dentistry",
     "status": "Scheduled",
     "_id": "rec_8_8632"
+  },
+  {
+    "patient_name": "aman",
+    "doctor_name": "Dr. Raj Malhotra",
+    "date": "2026-09-29",
+    "time": "2:30 PM",
+    "department": "Cardiology",
+    "status": "Scheduled",
+    "_id": "rec_10_44357"
+  },
+  {
+    "patient_name": "Aarav Sharma",
+    "doctor_name": "Dr. Meera Kapoor",
+    "date": "2026-09-29",
+    "time": "1:00 PM",
+    "department": "Dermatology",
+    "status": "Scheduled",
+    "_id": "rec_11_59393"
   }
 ]

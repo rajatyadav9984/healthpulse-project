@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DB_NAME = os.getenv("DB_NAME", "healthpulse_db")
+MONGO_TIMEOUT_MS = int(os.getenv("MONGO_TIMEOUT_MS", "500"))
 
 # Standardized 50 Doctors with Structured Weekly Schedules
 SEED_DOCTORS = [
@@ -587,7 +588,7 @@ class DatabaseManager:
 
     def _init_db(self):
         try:
-            self.client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
+            self.client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=MONGO_TIMEOUT_MS)
             self.client.admin.command('ping')
             self.db = self.client[DB_NAME]
             self.is_connected = True

@@ -97,16 +97,6 @@
     "contact": "+91 99999 88888",
     "condition": "Hypertension Test",
     "status": "Stable",
-    "_id": "rec_11_26093"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
     "_id": "rec_12_12657"
   },
   {
@@ -168,5 +158,15 @@
     "condition": "fghj",
     "status": "Stable",
     "_id": "rec_17_35961"
+  },
+  {
+    "name": "aman",
+    "age": 87,
+    "gender": "Male",
+    "blood_group": "A+",
+    "contact": "3456756789",
+    "condition": "fiver",
+    "status": "Stable",
+    "_id": "rec_17_33234"
   }
 ]

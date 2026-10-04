@@ -16,7 +16,7 @@
 - 📅 **Smart Appointment Booking**: Department-wise specialist filtering, dynamic date picker, and automated slot allocation.
 - 🚨 **Emergency Protocol & Code Blue**: Instant trauma alert triggers with direct dispatch notification banners.
 - 📊 **Executive Operations Dashboard**: Real-time stats on bed occupancy, active consultations, emergency protocols, and operational metrics.
-- ⚡ **1-Click Windows Launcher**: Pre-configured Batch & VBScript scripts to launch full-stack backend & frontend with a single click.
+- ⚡ **1-Click Windows Launcher**: Pre-configured Batch scripts to launch full-stack backend & frontend with a single click.
 
 ---
 
@@ -28,7 +28,7 @@
 | **Backend API** | Python 3, Flask, Flask-CORS, PyMongo, Python-dotenv |
 | **Database** | MongoDB (Primary) with Automatic Persistent JSON Fallback Storage |
 | **Testing** | Pytest |
-| **Automation** | Windows Batch Scripts (`.bat`), VBScript (`.vbs`), PowerShell |
+| **Automation** | Windows Batch Scripts (`.bat`), PowerShell |
 
 ---
 
@@ -61,7 +61,6 @@ HealthPulse-project/
 
 ├── start_healthpulse.bat      # 🚀 1-Click App Launcher Script
 ├── stop_healthpulse.bat       # 🛑 1-Click Server Termination Script
-├── create_desktop_shortcut.bat# 🖥️ Desktop Icon Generator
 └── README.md                  # Project Documentation
 ```
 
@@ -71,7 +70,7 @@ HealthPulse-project/
 
 ### Option 1: One-Click Launch (Windows)
 
-1. Double-click **`start_healthpulse.bat`** (or the **HealthPulse** Desktop Shortcut).
+1. Double-click **`start_healthpulse.bat`**.
 2. The launcher will automatically check dependencies, start the Flask server on **Port 5000**, and open `http://127.0.0.1:5000/` in your browser.
 3. To stop the application, double-click **`stop_healthpulse.bat`**.
 
