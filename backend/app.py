@@ -14,9 +14,9 @@ def create_app():
     frontend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'frontend'))
     html_dir = os.path.join(frontend_dir, 'html')
     app = Flask(__name__, static_folder=html_dir, static_url_path='')
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)  # Enable CORS for all origins
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-    # Register Blueprints
+    # Register Core Blueprints
     app.register_blueprint(patients_bp)
     app.register_blueprint(doctors_bp)
     app.register_blueprint(appointments_bp)
@@ -37,10 +37,6 @@ def create_app():
     def serve_js(filename):
         return send_from_directory(os.path.join(frontend_dir, 'js'), filename)
 
-
-
-
-
     @app.route('/health', methods=['GET'])
     def health_check():
         """Healthcheck endpoint for monitoring & DevOps probing"""
@@ -49,7 +45,6 @@ def create_app():
             "service": "HealthPulse Backend API",
             "version": "1.0.0"
         }), 200
-
 
     @app.errorhandler(404)
     def not_found(error):

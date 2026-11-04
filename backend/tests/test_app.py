@@ -125,3 +125,56 @@ def test_appointments_full_workflow(client):
     # 4e. Delete Appointment
     del_res = client.delete(f'/api/appointments/{apt_id}')
     assert del_res.status_code == 200
+
+    # Clean up auto-registered test patient so json remains clean
+    try:
+        p_list = client.get('/api/patients').get_json()
+        for p in p_list:
+            if p.get('name') == "Rohan Gupta":
+                client.delete(f"/api/patients/{p['_id']}")
+    except Exception:
+        pass
+
+def test_appointment_analytics(client):
+    """Test 5: Simplified Appointment Analytics (Total, Attended, Missed, Attendance Rate)"""
+    res = client.get('/api/analytics')
+    assert res.status_code == 200
+    data = res.get_json()
+    assert 'total_appointments' in data
+    assert 'attended' in data
+    assert 'no_shows' in data
+    assert 'attendance_rate' in data
+    assert 'no_show_rate' in data
+
+def test_random_forest_attendance_prediction(client):
+    """Test 6: Random Forest Appointment Attendance Prediction"""
+    # 6a. Low risk scenario (Clean history, SMS active, 2 lead days)
+    low_risk_payload = {
+        "age": 35,
+        "lead_days": 2,
+        "previous_no_shows": 0,
+        "has_sms_reminder": 1,
+        "appointment_time": "10:00 AM"
+    }
+    res_low = client.post('/api/predict', json=low_risk_payload)
+    assert res_low.status_code == 200
+    data_low = res_low.get_json()
+    assert data_low['status'] == 'success'
+    assert 'Random Forest' in data_low['model_name']
+    assert data_low['attendance_probability'] >= 0.60
+    assert data_low['risk_level'] == 'Low'
+
+    # 6b. High risk scenario (Multiple prior no-shows, No SMS, Long lead time)
+    high_risk_payload = {
+        "age": 28,
+        "lead_days": 20,
+        "previous_no_shows": 3,
+        "has_sms_reminder": 0,
+        "appointment_time": "04:30 PM"
+    }
+    res_high = client.post('/api/predict', json=high_risk_payload)
+    assert res_high.status_code == 200
+    data_high = res_high.get_json()
+    assert data_high['status'] == 'success'
+    assert data_high['attendance_probability'] < 0.50
+    assert data_high['risk_level'] == 'High'

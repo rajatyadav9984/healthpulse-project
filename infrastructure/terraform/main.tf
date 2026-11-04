@@ -1,131 +1,63 @@
-terraform {
-  required_version = ">= 1.15.0"
-
-  backend "azurerm" {
-    resource_group_name  = "rg-healthpulse-tfstate"
-    storage_account_name = "sthealthpulsetfstate2610"
-    container_name       = "tfstate"
-    key                  = "healthpulse.tfstate"
-  }
-
-  required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "= 5.7.0"
-    }
-  }
-}
-
-provider "azurerm" {
-  features {}
-
-  subscription_id                 = var.subscription_id
-  resource_provider_registrations = "core"
-}
-
-# -------------------------
-# Resource Group
-# -------------------------
-
 resource "azurerm_resource_group" "healthpulse" {
-  name     = var.resource_group_name
+  name     = "rg-healthpulse-vm-demo"
   location = var.location
-
-  tags = {
-    project     = "HealthPulse"
-    environment = var.environment
-    managed_by  = "Terraform"
-  }
 }
-
-# -------------------------
-# Virtual Network
-# -------------------------
 
 resource "azurerm_virtual_network" "healthpulse" {
-  name                = var.vnet_name
+  name                = "vnet-healthpulse-vm-demo"
+  address_space       = ["10.20.0.0/16"]
   location            = azurerm_resource_group.healthpulse.location
   resource_group_name = azurerm_resource_group.healthpulse.name
-  address_space       = [var.vnet_address_space]
-
-  tags = {
-    project = "HealthPulse"
-  }
 }
-
-# -------------------------
-# Subnet
-# -------------------------
 
 resource "azurerm_subnet" "healthpulse" {
-  name                 = var.subnet_name
+  name                 = "snet-healthpulse-vm"
   resource_group_name  = azurerm_resource_group.healthpulse.name
   virtual_network_name = azurerm_virtual_network.healthpulse.name
-  address_prefixes     = [var.subnet_address_prefix]
+  address_prefixes     = ["10.20.1.0/24"]
 }
 
-# -------------------------
-# Network Security Group
-# -------------------------
-
 resource "azurerm_network_security_group" "healthpulse" {
-  name                = var.nsg_name
+  name                = "nsg-healthpulse-vm-demo"
   location            = azurerm_resource_group.healthpulse.location
   resource_group_name = azurerm_resource_group.healthpulse.name
 
-  # SSH Rule
   security_rule {
-    name                       = "Allow-SSH"
+    name                       = "Allow-SSH-From-My-IP"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = var.ssh_source_address
+    source_address_prefix      = var.ssh_source_cidr
     destination_address_prefix = "*"
   }
 
-  # HTTP Rule
+  # Demo access for the HealthPulse Flask app
   security_rule {
-    name                       = "Allow-HTTP"
+    name                       = "Allow-HealthPulse-5000"
     priority                   = 110
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_range     = "80"
+    destination_port_range     = "5000"
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
-
-  tags = {
-    project = "HealthPulse"
-  }
 }
 
-# -------------------------
-# Public IP
-# -------------------------
-
 resource "azurerm_public_ip" "healthpulse" {
-  name                = var.public_ip_name
+  name                = "pip-healthpulse-vm-demo"
   location            = azurerm_resource_group.healthpulse.location
   resource_group_name = azurerm_resource_group.healthpulse.name
   allocation_method   = "Static"
   sku                 = "Standard"
-
-  tags = {
-    project = "HealthPulse"
-  }
 }
 
-# -------------------------
-# Network Interface
-# -------------------------
-
 resource "azurerm_network_interface" "healthpulse" {
-  name                = var.nic_name
+  name                = "nic-healthpulse-vm-demo"
   location            = azurerm_resource_group.healthpulse.location
   resource_group_name = azurerm_resource_group.healthpulse.name
 
@@ -135,32 +67,20 @@ resource "azurerm_network_interface" "healthpulse" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.healthpulse.id
   }
-
-  tags = {
-    project = "HealthPulse"
-  }
 }
-
-# -------------------------
-# NSG -> NIC Association
-# -------------------------
 
 resource "azurerm_network_interface_security_group_association" "healthpulse" {
   network_interface_id      = azurerm_network_interface.healthpulse.id
   network_security_group_id = azurerm_network_security_group.healthpulse.id
 }
 
-# -------------------------
-# Linux Virtual Machine
-# -------------------------
-
 resource "azurerm_linux_virtual_machine" "healthpulse" {
-  name                = var.vm_name
-  location            = azurerm_resource_group.healthpulse.location
+  name                = "vm-healthpulse-app-demo"
   resource_group_name = azurerm_resource_group.healthpulse.name
+  location            = azurerm_resource_group.healthpulse.location
   size                = var.vm_size
-  admin_username      = var.admin_username
 
+  admin_username                  = var.admin_username
   disable_password_authentication = true
 
   network_interface_ids = [
@@ -169,25 +89,19 @@ resource "azurerm_linux_virtual_machine" "healthpulse" {
 
   admin_ssh_key {
     username   = var.admin_username
-    public_key = var.ssh_public_key
+    public_key = file(pathexpand(var.ssh_public_key_path))
   }
 
   os_disk {
-    name                 = "${var.vm_name}-osdisk"
+    name                 = "osdisk-healthpulse-vm-demo"
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
   }
 
   source_image_reference {
     publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
+    offer     = "0001-com-ubuntu-server-jammy"
+    sku       = "22_04-lts-gen2"
     version   = "latest"
-  }
-
-  tags = {
-    project     = "HealthPulse"
-    environment = var.environment
-    managed_by  = "Terraform"
   }
 }

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Analytics & Attendance Prediction — HealthPulse</title>
+    <meta name="description" content="HealthPulse appointment analytics and Random Forest attendance risk prediction.">
+    <link rel="stylesheet" href="../css/style.css">
+    <style>
+        .prediction-section-grid {
+            display: grid;
+            grid-template-columns: 1.25fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2.5rem;
+        }
+        @media (max-width: 992px) {
+            .prediction-section-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .prediction-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.75rem;
+            box-shadow: var(--shadow-md);
+            backdrop-filter: blur(12px);
+        }
+        .risk-gauge-box {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1.75rem 1.5rem;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            margin: 1.25rem 0;
+            text-align: center;
+        }
+        .risk-gauge-score {
+            font-size: 3.2rem;
+            font-weight: 800;
+            letter-spacing: -1px;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            transition: color 0.4s ease;
+        }
+        .split-bar-wrap {
+            width: 100%;
+            height: 10px;
+            background: rgba(239, 68, 68, 0.25);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 1rem 0 0.5rem;
+            display: flex;
+        }
+        .split-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #06b6d4);
+            border-radius: 5px 0 0 5px;
+            transition: width 0.5s ease;
+        }
+        .factor-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.3rem 0.65rem;
+            border-radius: 8px;
+            font-size: 0.76rem;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body data-page="analytics">
+
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <a href="index.html" class="brand">
+            <div class="brand-icon">❤️‍🔥</div>
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span class="brand-title">HealthPulse</span>
+                    <span class="brand-tag">v1.0</span>
+                </div>
+            </div>
+        </a>
+
+        <ul class="nav-links">
+            <li><a href="index.html" class="nav-link">📊 Dashboard</a></li>
+            <li><a href="patients.html" class="nav-link">🩺 Patients</a></li>
+            <li><a href="doctors.html" class="nav-link">👨‍⚕️ Doctors</a></li>
+            <li><a href="appointments.html" class="nav-link">📅 Appointments</a></li>
+            <li><a href="analytics.html" class="nav-link active">📈 Analytics & AI</a></li>
+        </ul>
+
+        <div id="healthStatusPill" class="status-pill">
+            <span class="status-dot"></span> API OK
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="container">
+        
+        <!-- Header Banner -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Appointment Analytics & Attendance Prediction</h1>
+                <p class="page-subtitle">Appointment attendance tracking and Random Forest machine learning forecasting.</p>
+            </div>
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <span class="badge badge-info" id="modelAccuracyBadge" style="padding: 0.6rem 1.2rem; font-size: 0.88rem;">
+                    🤖 Random Forest Active
+                </span>
+                <button class="btn btn-secondary" id="btnRefreshAnalytics" onclick="refreshAnalyticsWithFeedback()">🔄 Refresh Analytics</button>
+            </div>
+        </div>
+
+        <!-- KPI Metrics Grid (Simplified: Total, Attended, Missed, Attendance Rate) -->
+        <div class="metrics-grid">
+            <div class="metric-card" style="--card-accent: var(--primary);">
+                <div class="metric-header">
+                    <span>Total Appointments</span>
+                    <div class="metric-icon-wrapper">📅</div>
+                </div>
+                <div class="metric-value" id="kpiTotal">--</div>
+                <div class="metric-footer">
+                    <span class="metric-trend">Total Consultations</span>
+                </div>
+            </div>
+
+            <div class="metric-card" style="--card-accent: var(--secondary);">
+                <div class="metric-header">
+                    <span>Attended Consultations</span>
+                    <div class="metric-icon-wrapper">✅</div>
+                </div>
+                <div class="metric-value" id="kpiAttendedCount">--</div>
+                <div class="metric-footer">
+                    <span class="metric-trend" style="color: #34d399;">Completed Visits</span>
+                </div>
+            </div>
+
+            <div class="metric-card" style="--card-accent: var(--danger);">
+                <div class="metric-header">
+                    <span>Missed Appointments</span>
+                    <div class="metric-icon-wrapper">⚠️</div>
+                </div>
+                <div class="metric-value" id="kpiNoShowCount">--</div>
+                <div class="metric-footer">
+                    <span class="metric-trend" style="color: #f87171;">Missed / No-Shows</span>
+                </div>
+            </div>
+
+            <div class="metric-card" style="--card-accent: var(--accent);">
+                <div class="metric-header">
+                    <span>Attendance Rate</span>
+                    <div class="metric-icon-wrapper">📈</div>
+                </div>
+                <div class="metric-value" id="kpiAttendanceRate">--%</div>
+                <div class="metric-footer">
+                    <span class="metric-trend" id="kpiNoShowRateText">No-Show Rate: --%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: AI Attendance Risk Predictor -->
+        <div class="page-header" style="margin-top: 1rem;">
+            <div>
+                <h2 class="page-title" style="font-size: 1.55rem;">🤖 Attendance Prediction (Random Forest)</h2>
+                <p class="page-subtitle">Predict appointment attendance probability based on historical patient behavior and booking lead time.</p>
+            </div>
+        </div>
+
+        <div class="prediction-section-grid">
+            
+            <!-- Predictor Input Form -->
+            <div class="prediction-card">
+                <h3 style="margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 600;">
+                    <span>🔮 Consultation Parameters</span>
+                </h3>
+                
+                <form id="attendancePredictForm" onsubmit="submitPredictAttendance(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Patient Name</label>
+                            <input type="text" id="predPatientName" list="patientNamesDatalist" class="form-control" required placeholder="Type or select patient name..." oninput="onPredictPatientNameInput()" autocomplete="off">
+                            <datalist id="patientNamesDatalist"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Patient Age</label>
+                            <input type="number" id="predAge" class="form-control" min="1" max="110" required placeholder="e.g. 30" oninput="onPredictInputChanged()">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Department</label>
+                            <select id="predDept" class="form-control" required onchange="onPredictDeptChange()">
+                                <option value="Cardiology">Cardiology</option>
+                                <option value="Dermatology">Dermatology</option>
+                                <option value="Neurology">Neurology</option>
+                                <option value="Orthopedics">Orthopedics</option>
+                                <option value="Pediatrics">Pediatrics</option>
+                                <option value="General Medicine">General Medicine</option>
+                                <option value="Dentistry">Dentistry</option>
+                                <option value="Psychiatry">Psychiatry</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Attending Doctor</label>
+                            <input type="text" id="predDoctorName" list="doctorNamesDatalist" class="form-control" required placeholder="Select or type doctor name..." oninput="onPredictInputChanged()" autocomplete="off">
+                            <datalist id="doctorNamesDatalist"></datalist>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Appointment Date</label>
+                            <input type="date" id="predDate" class="form-control" required onchange="onPredictInputChanged()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Appointment Time</label>
+                            <select id="predTime" class="form-control" required onchange="onPredictInputChanged()">
+                                <option value="10:00 AM">10:00 AM (Morning Slot)</option>
+                                <option value="11:30 AM">11:30 AM (Late Morning)</option>
+                                <option value="02:00 PM">02:00 PM (Afternoon)</option>
+                                <option value="04:30 PM">04:30 PM (Evening Slot)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label class="form-label">Booking Lead Days</label>
+                            <input type="number" id="predLeadDays" class="form-control" min="0" max="60" value="2" required oninput="onPredictInputChanged()">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Prior No-Shows</label>
+                            <select id="predPriorNoShows" class="form-control" required onchange="onPredictInputChanged()">
+                                <option value="0">0 (Clean Record)</option>
+                                <option value="1">1 Prior No-Show</option>
+                                <option value="2">2 Prior No-Shows</option>
+                                <option value="3">3+ Prior No-Shows</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">SMS Reminder</label>
+                            <select id="predSms" class="form-control" required onchange="onPredictInputChanged()">
+                                <option value="1">Yes (Automated SMS)</option>
+                                <option value="0">No Reminder</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end; align-items: center; gap: 0.75rem;">
+                        <button type="button" class="btn btn-secondary" onclick="resetPredictionForm()">🧹 Reset Inputs</button>
+                        <button type="submit" class="btn btn-primary" id="btnPredict" style="padding: 0.75rem 2rem; font-size: 1rem;">
+                            🚀 Run AI Prediction
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Prediction Result Card -->
+            <div class="prediction-card" id="predictionResultCard">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem;">
+                    <h3 style="font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                        <span>📊 Forecast Assessment</span>
+                    </h3>
+                    <span id="predictionRiskBadge" class="badge badge-info">Awaiting Input</span>
+                </div>
+
+                <div class="risk-gauge-box" id="riskGaugeBox">
+                    <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 0.4rem; text-transform: uppercase; letter-spacing: 0.5px;">Probability of Attendance</div>
+                    <div class="risk-gauge-score" id="predScoreText" style="color: #60a5fa;">--%</div>
+                    <div id="predVerdictText" style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.4rem;">
+                        Ready for Prediction
+                    </div>
+                    
+                    <!-- Split Progress Bar -->
+                    <div class="split-bar-wrap" id="splitBarContainer" style="display: none;">
+                        <div class="split-bar-fill" id="splitBarAttended" style="width: 50%;"></div>
+                    </div>
+
+                    <!-- Dynamic Factors Breakdown -->
+                    <div id="factorsPillContainer" style="display: none; flex-wrap: wrap; gap: 0.4rem; justify-content: center; margin: 0.75rem 0 0.5rem;">
+                        <!-- Generated dynamically -->
+                    </div>
+
+                    <p id="predRecommendationText" style="font-size: 0.88rem; color: var(--text-dim); margin-top: 0.5rem; line-height: 1.5;">
+                        Fill in appointment parameters on the left and click "Run AI Prediction" to evaluate attendance likelihood with the Random Forest model.
+                    </p>
+                </div>
+
+                <div style="margin-top: 1.25rem; font-size: 0.82rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; flex-direction: column; gap: 0.35rem;">
+                    <div><strong>Algorithm:</strong> <span id="metaModelName">Random Forest Classifier</span></div>
+                    <div><strong>Input Factors:</strong> Age, Lead Days, Prior No-Shows, SMS, Time Slot</div>
+                    <div><strong>Module:</strong> HealthPulse Appointment Intelligence</div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Global Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        HealthPulse Hospital Management Suite &copy; 2026. Built with Python, Flask & Random Forest ML.
+    </footer>
+
+    <script src="../js/app.js"></script>
+</body>
+</html>

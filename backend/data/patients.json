@@ -20,153 +20,83 @@
     "status": "Stable"
   },
   {
-    "name": "Test Patient",
-    "age": 45,
+    "_id": "p3",
+    "name": "Rajesh Kumar",
+    "age": 52,
     "gender": "Male",
     "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_4_62036"
+    "contact": "+91 97890 12345",
+    "condition": "Post Surgery",
+    "status": "Recovering"
   },
   {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_5_22349"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_6_28131"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_7_33403"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_8_71"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_9_24280"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_10_48494"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_12_12657"
-  },
-  {
-    "name": "Test Patient",
-    "age": 45,
-    "gender": "Male",
-    "blood_group": "B+",
-    "contact": "+91 99999 88888",
-    "condition": "Hypertension Test",
-    "status": "Stable",
-    "_id": "rec_13_52064"
-  },
-  {
-    "name": "Live Test Patient",
-    "age": 42,
+    "_id": "p4",
+    "name": "Sneha Gupta",
+    "age": 29,
     "gender": "Female",
-    "blood_group": "O+",
-    "contact": "+91 99999 88888",
-    "condition": "Fever & Cold Checkup",
-    "status": "Stable",
-    "_id": "rec_13_18890"
-  },
-  {
-    "name": "Persistence Verification Patient",
-    "age": 30,
-    "gender": "Male",
     "blood_group": "AB+",
-    "contact": "+91 91111 22222",
-    "condition": "Post-Op Checkup",
-    "status": "Recovering",
-    "_id": "rec_14_38394"
+    "contact": "+91 91234 56789",
+    "condition": "Migraine Care",
+    "status": "Monitoring"
   },
   {
-    "name": "ishu",
-    "age": 100,
+    "_id": "p5",
+    "name": "Vikram Singh",
+    "age": 42,
     "gender": "Male",
-    "blood_group": "A+",
-    "contact": "9555439276",
-    "condition": "fiver",
-    "status": "Stable",
-    "_id": "rec_16_42081"
+    "blood_group": "O-",
+    "contact": "+91 99887 76655",
+    "condition": "Asthma Treatment",
+    "status": "Stable"
   },
   {
-    "name": "isu",
-    "age": 1,
+    "_id": "p6",
+    "name": "mohit",
+    "age": 26,
     "gender": "Male",
     "blood_group": "B+",
-    "contact": "9555439276",
-    "condition": "fiver",
-    "status": "Stable",
-    "_id": "rec_16_7701"
+    "contact": "+91 98765 11223",
+    "condition": "Endocrinology Consultation",
+    "status": "Stable"
   },
   {
-    "name": "visal",
+    "_id": "p7",
+    "name": "rjt",
+    "age": 10,
+    "gender": "Male",
+    "blood_group": "A+",
+    "contact": "8795367563",
+    "condition": "Fever & Cold",
+    "status": "Stable"
+  },
+  {
+    "name": "yash",
+    "age": 30,
+    "gender": "Unknown",
+    "blood_group": "O+",
+    "contact": "+91 98000 00000",
+    "condition": "Cardiology Consultation",
+    "status": "Stable",
+    "_id": "rec_8_64294"
+  },
+  {
+    "name": "rjt1",
     "age": 100,
     "gender": "Male",
     "blood_group": "A+",
-    "contact": "9555439276",
-    "condition": "fghj",
-    "status": "Stable",
-    "_id": "rec_17_35961"
-  },
-  {
-    "name": "aman",
-    "age": 87,
-    "gender": "Male",
-    "blood_group": "A+",
-    "contact": "3456756789",
+    "contact": "8795367563",
     "condition": "fiver",
     "status": "Stable",
-    "_id": "rec_17_33234"
+    "_id": "rec_9_64866"
+  },
+  {
+    "name": "rjt2",
+    "age": 100,
+    "gender": "Male",
+    "blood_group": "A+",
+    "contact": "8795367563",
+    "condition": "fiver",
+    "status": "Stable",
+    "_id": "rec_10_7428"
   }
 ]

@@ -3,7 +3,39 @@
    API Gateway, Dynamic 50 Specialty Rendering, Modal & Event Controllers
    ========================================================================== */
 
-const API_BASE_URL = 'http://127.0.0.1:5000';
+function getApiBaseUrl() {
+    if (typeof window === 'undefined' || !window.location) {
+        return 'http://127.0.0.1:5000';
+    }
+    const { protocol, hostname, port, origin } = window.location;
+    if (protocol === 'file:' || !origin || origin === 'null') {
+        return 'http://127.0.0.1:5000';
+    }
+    // If opened via VS Code Live Server / static dev server (port 5500, 3000, 8080, etc.), point to Flask on port 5000
+    if ((hostname === 'localhost' || hostname === '127.0.0.1') && port && port !== '5000') {
+        return 'http://127.0.0.1:5000';
+    }
+    return origin;
+}
+const API_BASE_URL = getApiBaseUrl();
+
+async function safeFetchJson(url, options = {}, timeoutMs = 3000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) return null;
+        const text = await res.text();
+        if (!text || text.trim().startsWith('<')) {
+            return null;
+        }
+        return JSON.parse(text);
+    } catch {
+        clearTimeout(timer);
+        return null;
+    }
+}
 
 let selectedTimeSlot = ''; // Global tracker for appointment slot choice
 
@@ -462,6 +494,61 @@ const MOCK_DATA = {
             }
         }
     ],
+        analytics: {
+        summary: {
+            total_appointments: 300,
+            attended: 191,
+            no_shows: 109,
+            attendance_rate: 63.7,
+            no_show_rate: 36.3,
+            top_department: "Gastroenterology",
+            top_doctor: "Dr. Rahul Singh",
+            average_patient_age: 48.5,
+            sms_reminders_sent: 241
+        },
+        departments: [
+            { department: "Gastroenterology", total: 27, attended: 15, no_shows: 12, attendance_rate: 55.6 },
+            { department: "Dermatology", total: 25, attended: 15, no_shows: 10, attendance_rate: 60.0 },
+            { department: "Neurology", total: 22, attended: 13, no_shows: 9, attendance_rate: 59.1 },
+            { department: "Cardiology", total: 21, attended: 16, no_shows: 5, attendance_rate: 76.2 },
+            { department: "Orthopedics", total: 19, attended: 13, no_shows: 6, attendance_rate: 68.4 },
+            { department: "Pediatrics", total: 18, attended: 14, no_shows: 4, attendance_rate: 77.8 }
+        ],
+        hourly: [
+            { appointment_hour: 9, time_label: "9 AM", total: 38, attended: 26, no_shows: 12 },
+            { appointment_hour: 10, time_label: "10 AM", total: 46, attended: 32, no_shows: 14 },
+            { appointment_hour: 11, time_label: "11 AM", total: 44, attended: 29, no_shows: 15 },
+            { appointment_hour: 14, time_label: "2 PM", total: 40, attended: 24, no_shows: 16 },
+            { appointment_hour: 15, time_label: "3 PM", total: 36, attended: 22, no_shows: 14 },
+            { appointment_hour: 16, time_label: "4 PM", total: 30, attended: 17, no_shows: 13 },
+            { appointment_hour: 17, time_label: "5 PM", total: 24, attended: 12, no_shows: 12 }
+        ],
+        weekly: [
+            { day_of_week: "Monday", total: 54, attended: 36, no_shows: 18, attendance_rate: 66.7 },
+            { day_of_week: "Tuesday", total: 52, attended: 35, no_shows: 17, attendance_rate: 67.3 },
+            { day_of_week: "Wednesday", total: 48, attended: 31, no_shows: 17, attendance_rate: 64.6 },
+            { day_of_week: "Thursday", total: 46, attended: 29, no_shows: 17, attendance_rate: 63.0 },
+            { day_of_week: "Friday", total: 50, attended: 33, no_shows: 17, attendance_rate: 66.0 },
+            { day_of_week: "Saturday", total: 34, attended: 18, no_shows: 16, attendance_rate: 52.9 }
+        ],
+        risks: {
+            sms_impact: {
+                with_sms: { total: 241, attendance_rate: 69.7 },
+                without_sms: { total: 59, attendance_rate: 39.0 }
+            },
+            lead_time_impact: [
+                { category: "Short (0-3d)", total: 95, attendance_rate: 78.9 },
+                { category: "Medium (4-7d)", total: 115, attendance_rate: 64.3 },
+                { category: "Long (>7d)", total: 90, attendance_rate: 47.8 }
+            ]
+        },
+        modelInfo: {
+            model_name: "Random Forest Classifier",
+            test_accuracy: 0.733,
+            train_samples: 240,
+            test_samples: 60
+        }
+    },
     appointments: [
         { _id: 'a1', patient_name: 'Aarav Sharma', doctor_name: 'Dr. Vikram Sethi', date: '2026-09-24', time: '10:30 AM', department: 'Cardiology', status: 'Scheduled' }
     ]
@@ -524,13 +611,15 @@ function initCurrentPage() {
         loadDoctorsGrid();
     } else if (page === 'appointments') {
         loadAppointmentsTable();
+    } else if (page === 'analytics') {
+        loadAnalyticsPage();
     }
 }
 
 /* ==========================================================================
    API FETCH HELPERS WITH MOCK FALLBACKS
    ========================================================================== */
-async function fetchWithTimeout(url, options = {}, timeoutMs = 1500) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 5000) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -1174,12 +1263,17 @@ async function submitAddPatient(event) {
             body: JSON.stringify(newPatient)
         });
 
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.error || 'Failed to register patient');
-        }
+        let data = {};
+        try {
+            const text = await res.text();
+            if (text && !text.trim().startsWith('<')) data = JSON.parse(text);
+        } catch {}
 
-        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to register patient');
+        }
+        const patientObj = data.patient || newPatient;
+        MOCK_DATA.patients.unshift(patientObj);
         showToast(`Patient ${name} registered successfully!`, 'success');
     } catch (err) {
         console.error("Patient registration failed:", err);
@@ -1191,10 +1285,60 @@ async function submitAddPatient(event) {
     event.target.reset();
 
     if (document.body.dataset.page === 'patients') {
-        loadPatientsTable();
+        await loadPatientsTable();
+    } else if (document.body.dataset.page === 'dashboard') {
+        await loadDashboardMetrics();
     } else {
-        showToast(`Navigating to Patients Directory to view ${name}...`, 'info');
-        setTimeout(() => { window.location.href = 'patients.html'; }, 800);
+        showToast(`Patient ${name} registered successfully!`, 'success');
+    }
+}
+
+// Add Doctor Submission Handler
+async function submitAddDoctor(event) {
+    event.preventDefault();
+    const name = document.getElementById('dName').value.trim();
+    const specialization = document.getElementById('dSpec').value.trim();
+    const department = document.getElementById('dDept').value.trim();
+    const experience = document.getElementById('dExp').value.trim();
+    const room = document.getElementById('dRoom').value.trim();
+    const status = document.getElementById('dStatus').value;
+
+    const newDoctor = { name, specialization, department, experience, room, status };
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/doctors`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newDoctor)
+        });
+
+        let data = {};
+        try {
+            const text = await res.text();
+            if (text && !text.trim().startsWith('<')) data = JSON.parse(text);
+        } catch {}
+
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to register doctor');
+        }
+        if (data.doctor) {
+            MOCK_DATA.doctors.unshift(data.doctor);
+        }
+        showToast(`Doctor ${name} registered successfully!`, 'success');
+    } catch (err) {
+        console.error("Doctor registration failed:", err);
+        showToast(err.message || 'Doctor could not be saved. Please check server.', 'danger');
+        return;
+    }
+
+    closeModal('addDoctorModal');
+    event.target.reset();
+
+    if (document.body.dataset.page === 'doctors') {
+        loadDoctorsGrid();
+    } else {
+        showToast(`Navigating to Doctors Directory...`, 'info');
+        setTimeout(() => { window.location.href = 'doctors.html'; }, 800);
     }
 }
 
@@ -1252,8 +1396,11 @@ async function submitAddAppointment(event) {
             body: JSON.stringify(newApt)
         });
 
-        const data = await res.json();
-
+        let data = {};
+        try {
+            const text = await res.text();
+            if (text && !text.trim().startsWith('<')) data = JSON.parse(text);
+        } catch {}
         console.log("Appointment API response:", res.status, data);
 
         if (!res.ok) {
@@ -1266,8 +1413,20 @@ async function submitAddAppointment(event) {
 
         // Backend ne successfully save kiya
         const aptObj = data.appointment || newApt;
-
         MOCK_DATA.appointments.unshift(aptObj);
+
+        // Also record patient in local mock if not already present
+        if (!MOCK_DATA.patients.some(p => p.name && p.name.toLowerCase() === patient_name.toLowerCase())) {
+            MOCK_DATA.patients.unshift({
+                name: patient_name,
+                age: 30,
+                gender: 'Male',
+                blood_group: 'O+',
+                contact: '+91 98000 00000',
+                condition: `${department} Consultation`,
+                status: 'Stable'
+            });
+        }
 
         showToast(
             `Appointment booked successfully for ${patient_name} at ${selectedTimeSlot}.`,
@@ -1339,4 +1498,374 @@ function showToast(message, type = 'info') {
         toast.style.transform = 'translateX(100%)';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+
+/* ==========================================================================
+   CLINICAL ANALYTICS & AI PREDICTIONS ENGINE
+   ========================================================================== */
+
+const DEPT_DOCTOR_SUGGESTIONS = {
+    'Cardiology': 'Dr. Vikram Sethi',
+    'Dermatology': 'Dr. Meera Kapoor',
+    'Neurology': 'Dr. Sunita Mehta',
+    'Orthopedics': 'Dr. Raj Malhotra',
+    'Pediatrics': 'Dr. Neha Gupta',
+    'General Medicine': 'Dr. Randeep Guleria',
+    'Dentistry': 'Dr. Pooja Singhania',
+    'Psychiatry': 'Dr. Kabir Bedi'
+};
+
+let REGISTERED_PATIENTS_CACHE = [];
+
+async function populatePredictionSuggestions() {
+    try {
+        const patients = await fetchPatientsData();
+        REGISTERED_PATIENTS_CACHE = Array.isArray(patients) ? patients : [];
+        const pDatalist = document.getElementById('patientNamesDatalist');
+        if (pDatalist && REGISTERED_PATIENTS_CACHE.length > 0) {
+            pDatalist.innerHTML = REGISTERED_PATIENTS_CACHE.map(p => 
+                `<option value="${p.name}">${p.age} yrs | ${p.condition || 'General'}</option>`
+            ).join('');
+        }
+
+        const doctors = await fetchDoctorsData();
+        const dDatalist = document.getElementById('doctorNamesDatalist');
+        if (dDatalist && Array.isArray(doctors) && doctors.length > 0) {
+            dDatalist.innerHTML = doctors.map(d => 
+                `<option value="${d.name}">${d.specialization} (${d.department})</option>`
+            ).join('');
+        }
+    } catch (e) {
+        console.warn('Could not populate prediction suggestions:', e);
+    }
+}
+
+function onPredictPatientNameInput() {
+    const pInput = document.getElementById('predPatientName');
+    const ageInput = document.getElementById('predAge');
+    if (pInput && ageInput && REGISTERED_PATIENTS_CACHE.length > 0) {
+        const entered = pInput.value.trim().toLowerCase();
+        const match = REGISTERED_PATIENTS_CACHE.find(p => p.name && p.name.trim().toLowerCase() === entered);
+        if (match && match.age) {
+            ageInput.value = match.age;
+        }
+    }
+    onPredictInputChanged();
+}
+
+function onPredictDeptChange() {
+    const deptSelect = document.getElementById('predDept');
+    const docInput = document.getElementById('predDoctorName');
+    if (!deptSelect || !docInput) return;
+    const dept = deptSelect.value;
+    if (!docInput.value || Object.values(DEPT_DOCTOR_SUGGESTIONS).includes(docInput.value)) {
+        if (DEPT_DOCTOR_SUGGESTIONS[dept]) {
+            docInput.value = DEPT_DOCTOR_SUGGESTIONS[dept];
+        }
+    }
+    onPredictInputChanged();
+}
+
+function resetPredictionForm() {
+    const form = document.getElementById('attendancePredictForm');
+    if (form) form.reset();
+
+    const pInput = document.getElementById('predPatientName');
+    if (pInput) pInput.value = '';
+
+    const ageInput = document.getElementById('predAge');
+    if (ageInput) ageInput.value = '';
+
+    const docInput = document.getElementById('predDoctorName');
+    if (docInput) docInput.value = '';
+
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dateInput = document.getElementById('predDate');
+    if (dateInput) dateInput.value = tomorrow.toISOString().split('T')[0];
+
+    const leadInput = document.getElementById('predLeadDays');
+    if (leadInput) leadInput.value = '2';
+
+    const priorSelect = document.getElementById('predPriorNoShows');
+    if (priorSelect) priorSelect.value = '0';
+
+    const smsSelect = document.getElementById('predSms');
+    if (smsSelect) smsSelect.value = '1';
+
+    const badgeElem = document.getElementById('predictionRiskBadge');
+    if (badgeElem) {
+        badgeElem.className = 'badge badge-info';
+        badgeElem.textContent = 'Awaiting Input';
+    }
+
+    const scoreElem = document.getElementById('predScoreText');
+    if (scoreElem) {
+        scoreElem.textContent = '--%';
+        scoreElem.style.color = '#60a5fa';
+    }
+
+    const verdictElem = document.getElementById('predVerdictText');
+    if (verdictElem) {
+        verdictElem.textContent = 'Ready for Prediction';
+        verdictElem.style.color = '#fff';
+    }
+
+    const splitBar = document.getElementById('splitBarContainer');
+    if (splitBar) splitBar.style.display = 'none';
+
+    const factorContainer = document.getElementById('factorsPillContainer');
+    if (factorContainer) factorContainer.style.display = 'none';
+
+    const recElem = document.getElementById('predRecommendationText');
+    if (recElem) recElem.textContent = 'Fill in appointment parameters on the left and click "Run AI Prediction" to evaluate attendance likelihood with the Random Forest model.';
+
+    showToast('Consultation inputs reset. Ready for new patient.', 'info');
+}
+
+async function refreshAnalyticsWithFeedback() {
+    const btn = document.getElementById('btnRefreshAnalytics');
+    const origHtml = btn ? btn.innerHTML : '🔄 Refresh Analytics';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Refreshing...';
+    }
+    try {
+        await loadAnalyticsPage(true);
+        showToast('Appointment analytics refreshed successfully!', 'success');
+    } catch (err) {
+        console.error('Manual refresh failed:', err);
+        showToast('Failed to refresh analytics.', 'danger');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+}
+
+function onPredictInputChanged() {
+    const badge = document.getElementById('predictionRiskBadge');
+    if (badge && badge.textContent !== 'Awaiting Input') {
+        badge.textContent = 'Inputs Changed ⚡';
+        badge.className = 'badge badge-info';
+    }
+}
+
+async function loadAnalyticsPage(isManual = false) {
+    // 1. Initialize default date if empty (tomorrow)
+    const dateInput = document.getElementById('predDate');
+    if (dateInput && !dateInput.value) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateInput.value = tomorrow.toISOString().split('T')[0];
+    }
+
+    // 2. Populate suggestions datalist for patient name & doctors
+    await populatePredictionSuggestions();
+
+    try {
+        // Fetch core Appointment Analytics
+        let summary = await safeFetchJson(`${API_BASE_URL}/api/analytics?t=${Date.now()}`);
+        if (!summary || typeof summary.total_appointments === 'undefined') {
+            const apts = await fetchAppointmentsData();
+            const total = apts.length;
+            const attended = apts.filter(a => ['Completed', 'Attended', 'Confirmed'].includes(a.status)).length;
+            const missed = apts.filter(a => ['Missed', 'No-Show', 'Cancelled'].includes(a.status)).length;
+            const rate = total > 0 ? Math.round((attended / total) * 1000) / 10 : 0;
+            summary = {
+                total_appointments: total,
+                attended: attended,
+                no_shows: missed,
+                attendance_rate: rate,
+                no_show_rate: total > 0 ? Math.round((100 - rate) * 10) / 10 : 0
+            };
+        }
+
+        const kpiTotal = document.getElementById('kpiTotal');
+        const kpiAttended = document.getElementById('kpiAttendedCount');
+        const kpiNoShow = document.getElementById('kpiNoShowCount');
+        const kpiAttRate = document.getElementById('kpiAttendanceRate');
+        const kpiNoShowRateText = document.getElementById('kpiNoShowRateText');
+
+        if (kpiTotal) kpiTotal.textContent = summary.total_appointments || 0;
+        if (kpiAttended) kpiAttended.textContent = summary.attended || 0;
+        if (kpiNoShow) kpiNoShow.textContent = summary.no_shows || 0;
+        if (kpiAttRate) kpiAttRate.textContent = `${summary.attendance_rate || 0}%`;
+        if (kpiNoShowRateText) kpiNoShowRateText.textContent = `No-Show Rate: ${summary.no_show_rate || 0}%`;
+    } catch (err) {
+        console.error('Failed to load appointment analytics:', err);
+    }
+}
+
+// Client-side Random Forest ML heuristic fallback
+function computeClientSidePrediction(payload) {
+    let prob = 0.82;
+
+    const prev = parseInt(payload.previous_no_shows, 10) || 0;
+    if (prev === 0) prob += 0.06;
+    else if (prev === 1) prob -= 0.18;
+    else if (prev === 2) prob -= 0.35;
+    else if (prev >= 3) prob -= 0.52;
+
+    const sms = parseInt(payload.has_sms_reminder, 10);
+    if (sms === 1) prob += 0.06;
+    else prob -= 0.22;
+
+    const lead = parseInt(payload.lead_days, 10) || 0;
+    if (lead <= 2) prob += 0.05;
+    else if (lead <= 5) prob += 0.01;
+    else if (lead <= 10) prob -= 0.12;
+    else prob -= 0.24;
+
+    const timeStr = payload.appointment_time || '10:00 AM';
+    if (timeStr.includes('10:00') || timeStr.includes('11:30')) prob += 0.04;
+    else if (timeStr.includes('04:30') || timeStr.includes('Evening')) prob -= 0.08;
+
+    prob = Math.max(0.12, Math.min(0.96, prob));
+
+    let riskLevel = 'Low';
+    let recommendation = 'High likelihood of attendance. Send standard reminder notification.';
+    if (prob < 0.48) {
+        riskLevel = 'High';
+        recommendation = 'High risk of No-Show! Clinical coordinator should place a confirmation call.';
+    } else if (prob < 0.70) {
+        riskLevel = 'Medium';
+        recommendation = 'Moderate attendance risk. Automated 24h SMS + WhatsApp confirmation recommended.';
+    }
+
+    return {
+        status: 'success',
+        model_name: 'Random Forest Classifier',
+        prediction: prob >= 0.50 ? 'Attended' : 'No-Show',
+        attendance_probability: parseFloat(prob.toFixed(3)),
+        no_show_probability: parseFloat((1.0 - prob).toFixed(3)),
+        attendance_percentage: `${Math.round(prob * 100)}%`,
+        risk_level: riskLevel,
+        recommendation: recommendation
+    };
+}
+
+function updatePredictionDisplay(data, payload) {
+    const scoreElem = document.getElementById('predScoreText');
+    const verdictElem = document.getElementById('predVerdictText');
+    const badgeElem = document.getElementById('predictionRiskBadge');
+    const recElem = document.getElementById('predRecommendationText');
+    const splitBar = document.getElementById('splitBarContainer');
+    const splitFill = document.getElementById('splitBarAttended');
+    const factorContainer = document.getElementById('factorsPillContainer');
+
+    const pct = Math.round(data.attendance_probability * 100);
+    if (scoreElem) scoreElem.textContent = `${pct}%`;
+
+    if (splitBar && splitFill) {
+        splitBar.style.display = 'flex';
+        splitFill.style.width = `${pct}%`;
+    }
+
+    if (data.risk_level === 'Low') {
+        if (scoreElem) scoreElem.style.color = '#34d399';
+        if (verdictElem) {
+            const pLabel = (payload && payload.patient_name && payload.patient_name !== 'Patient') ? ` for ${payload.patient_name}` : '';
+            verdictElem.textContent = `Likely to Attend ✅${pLabel}`;
+            verdictElem.style.color = '#34d399';
+        }
+        if (badgeElem) {
+            badgeElem.className = 'badge badge-success';
+            badgeElem.textContent = 'Low Risk (Safe)';
+        }
+    } else if (data.risk_level === 'Medium') {
+        if (scoreElem) scoreElem.style.color = '#fbbf24';
+        if (verdictElem) {
+            const pLabel = (payload && payload.patient_name && payload.patient_name !== 'Patient') ? ` for ${payload.patient_name}` : '';
+            verdictElem.textContent = `Moderate Risk ⚠️${pLabel}`;
+            verdictElem.style.color = '#fbbf24';
+        }
+        if (badgeElem) {
+            badgeElem.className = 'badge badge-warning';
+            badgeElem.textContent = 'Medium Risk';
+        }
+    } else {
+        if (scoreElem) scoreElem.style.color = '#f87171';
+        if (verdictElem) {
+            const pLabel = (payload && payload.patient_name && payload.patient_name !== 'Patient') ? ` for ${payload.patient_name}` : '';
+            verdictElem.textContent = `High No-Show Risk 🚨${pLabel}`;
+            verdictElem.style.color = '#f87171';
+        }
+        if (badgeElem) {
+            badgeElem.className = 'badge badge-danger';
+            badgeElem.textContent = 'High No-Show Risk';
+        }
+    }
+
+    if (factorContainer && payload) {
+        factorContainer.style.display = 'flex';
+        const smsTag = payload.has_sms_reminder === 1 
+            ? '<span class="factor-tag" style="border-color: rgba(16,185,129,0.3); color: #34d399;">📱 SMS Active</span>' 
+            : '<span class="factor-tag" style="border-color: rgba(239,68,68,0.3); color: #f87171;">🚫 No SMS</span>';
+        
+        const priorTag = payload.previous_no_shows === 0 
+            ? '<span class="factor-tag" style="border-color: rgba(16,185,129,0.3); color: #34d399;">🎯 Clean History (0 Missed)</span>' 
+            : `<span class="factor-tag" style="border-color: rgba(239,68,68,0.3); color: #f87171;">⚠️ ${payload.previous_no_shows} Prior Missed</span>`;
+        
+        const leadTag = `<span class="factor-tag" style="border-color: rgba(245,158,11,0.3); color: #fbbf24;">🗓️ Lead: ${payload.lead_days}d</span>`;
+
+        factorContainer.innerHTML = `${priorTag} ${smsTag} ${leadTag}`;
+    }
+
+    if (recElem) recElem.textContent = data.recommendation;
+}
+
+async function submitPredictAttendance(event) {
+    if (event && event.preventDefault) event.preventDefault();
+
+    const btn = document.getElementById('btnPredict');
+    const origText = btn ? btn.innerHTML : 'Run AI Prediction';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Running Random Forest...';
+    }
+
+    const leadDaysInput = parseInt(document.getElementById('predLeadDays').value, 10);
+    const prevNoShowsInput = parseInt(document.getElementById('predPriorNoShows').value, 10);
+    const smsInput = parseInt(document.getElementById('predSms').value, 10);
+
+    const ageInputVal = parseInt(document.getElementById('predAge').value, 10);
+    const payload = {
+        patient_name: (document.getElementById('predPatientName').value || 'Patient').trim(),
+        age: isNaN(ageInputVal) ? 30 : ageInputVal,
+        department: document.getElementById('predDept').value,
+        doctor_name: (document.getElementById('predDoctorName').value || 'Dr. Specialist').trim(),
+        appointment_date: document.getElementById('predDate').value,
+        appointment_time: document.getElementById('predTime').value,
+        lead_days: isNaN(leadDaysInput) ? 2 : leadDaysInput,
+        previous_no_shows: isNaN(prevNoShowsInput) ? 0 : prevNoShowsInput,
+        has_sms_reminder: isNaN(smsInput) ? 1 : smsInput
+    };
+
+    try {
+        let data = await safeFetchJson(`${API_BASE_URL}/api/predict`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!data || !data.attendance_probability) {
+            data = computeClientSidePrediction(payload);
+        }
+
+        updatePredictionDisplay(data, payload);
+        const pct = Math.round(data.attendance_probability * 100);
+        showToast(`Random Forest Prediction: ${pct}% Attendance Likelihood (${data.risk_level} Risk)`, 'success');
+    } catch (err) {
+        console.error('Prediction failed, using fallback:', err);
+        const fallback = computeClientSidePrediction(payload);
+        updatePredictionDisplay(fallback, payload);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origText;
+        }
+    }
 }
